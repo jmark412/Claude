@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sankey Chart Builder</title>
+ 
+  <!-- Office.js -->
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <!-- Plotly -->
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+ 
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+ 
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222636;
+      --border: #2e3247;
+      --accent: #6c8cff;
+      --accent2: #a78bfa;
+      --text: #e8eaf0;
+      --muted: #7b82a0;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --radius: 8px;
+    }
+ 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+ 
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px 10px;
+      flex-shrink: 0;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+    .logo {
+      width: 22px; height: 22px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; flex-shrink: 0;
+    }
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+    .header p {
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 30px;
+    }
+ 
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px 0;
+      text-align: center;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+ 
+    /* ── Panels ── */
+    .panels { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .panel { display: none; flex: 1; overflow-y: auto; padding: 12px 14px; flex-direction: column; gap: 12px; }
+    .panel.active { display: flex; }
+ 
+    /* ── Section labels ── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+ 
+    /* ── Format hint ── */
+    .format-hint {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+    }
+    .format-hint p { font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+    .format-hint code {
+      font-family: 'DM Mono', monospace;
+      font-size: 10.5px;
+      background: var(--surface2);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--accent);
+    }
+    .table-preview {
+      margin-top: 8px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .table-preview table { width: 100%; border-collapse: collapse; }
+    .table-preview th {
+      background: var(--surface2);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      padding: 5px 8px;
+      text-align: left;
+      letter-spacing: 0.5px;
+    }
+    .table-preview td {
+      font-family: 'DM Mono', monospace;
+      font-size: 10.5px;
+      color: var(--text);
+      padding: 4px 8px;
+      border-top: 1px solid var(--border);
+    }
+    .table-preview tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+ 
+    /* ── Form elements ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 11px; font-weight: 500; color: var(--muted); }
+    input[type="text"], select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12.5px;
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+ 
+    /* ── Color palette ── */
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .palette-btn {
+      border-radius: 6px;
+      padding: 7px 4px;
+      font-size: 10.5px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 2px solid transparent;
+      text-align: center;
+      transition: all 0.15s;
+      color: white;
+    }
+    .palette-btn:hover { transform: translateY(-1px); }
+    .palette-btn.selected { border-color: white; }
+ 
+    /* ── Buttons ── */
+    .btn {
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 9px 14px;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      width: 100%;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      width: 100%;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm {
+      font-size: 11px;
+      padding: 5px 10px;
+      width: auto;
+    }
+ 
+    /* ── Status ── */
+    .status {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      font-size: 11.5px;
+    }
+    .status.show { display: flex; }
+    .status.success { background: rgba(52,211,153,0.1); color: var(--success); border: 1px solid rgba(52,211,153,0.2); }
+    .status.error   { background: rgba(248,113,113,0.1); color: var(--danger);  border: 1px solid rgba(248,113,113,0.2); }
+    .status.info    { background: rgba(108,140,255,0.1); color: var(--accent);  border: 1px solid rgba(108,140,255,0.2); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+ 
+    /* ── Chart tab ── */
+    #chart-panel {
+      padding: 0;
+      gap: 0;
+    }
+    #chart-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #chart-toolbar .chart-title-display {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #chart-stats {
+      font-size: 10.5px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+    #chart-container {
+      flex: 1;
+      background: #ffffff;
+      position: relative;
+      overflow: hidden;
+    }
+    #chart {
+      width: 100%;
+      height: 100%;
+    }
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #999;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+    }
+    .chart-empty-icon { font-size: 32px; opacity: 0.4; }
+    .chart-empty p { opacity: 0.6; font-size: 12px; text-align: center; max-width: 160px; line-height: 1.5; }
+ 
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0;
+    }
+ 
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(108,140,255,0.3);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+ 
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+ 
+<div class="header">
+  <div class="header-top">
+    <div class="logo">⟁</div>
+    <h1>Sankey Chart Builder</h1>
+  </div>
+  <p>Select a data range · Render · Refresh</p>
+</div>
+ 
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('data')">① Data</div>
+  <div class="tab" onclick="switchTab('style')">② Style</div>
+  <div class="tab" onclick="switchTab('chart')">③ Chart</div>
+</div>
+ 
+<div class="panels">
+ 
+  <!-- ── DATA PANEL ── -->
+  <div class="panel active" id="data-panel">
+ 
+    <div>
+      <div class="section-label">Data Format</div>
+      <div class="format-hint">
+        <p>Your table needs 3 columns: <code>From</code>, <code>To</code>, <code>Value</code>. Include a header row. Add as many rows as needed for multiple hops and levels.</p>
+        <div class="table-preview">
+          <table>
+            <tr><th>A — From</th><th>B — To</th><th>C — Value</th></tr>
+            <tr><td>Medicare</td><td>Pain Mgmt</td><td>1,200,000</td></tr>
+            <tr><td>Medicaid</td><td>Pain Mgmt</td><td>450,000</td></tr>
+            <tr><td>BCBS</td><td>Ortho</td><td>875,000</td></tr>
+            <tr><td>Pain Mgmt</td><td>Redefine NJ</td><td>980,000</td></tr>
+            <tr><td>Ortho</td><td>Mercer Bucks</td><td>740,000</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+ 
+    <div>
+      <div class="section-label">Selection</div>
+      <div class="field">
+        <label>Selected Range</label>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="text" id="range-display" placeholder="Select cells in Excel first…" readonly style="flex:1; background:var(--surface2); cursor:default;"/>
+          <button class="btn btn-secondary btn-sm" onclick="captureRange()">📌 Capture</button>
+        </div>
+      </div>
+      <div style="margin-top:8px; font-size:11px; color:var(--muted); line-height:1.6;">
+        1. Highlight your data range in Excel (including header row)<br/>
+        2. Click <strong style="color:var(--text);">Capture</strong> to lock it in<br/>
+        3. Adjust style settings → click <strong style="color:var(--text);">Render Chart</strong>
+      </div>
+    </div>
+ 
+    <div id="data-status" class="status"></div>
+ 
+    <button class="btn btn-primary" onclick="renderChart()">
+      ⟁ &nbsp;Render Chart
+    </button>
+ 
+  </div>
+ 
+  <!-- ── STYLE PANEL ── -->
+  <div class="panel" id="style-panel">
+ 
+    <div class="field">
+      <label>Chart Title</label>
+      <input type="text" id="chart-title" placeholder="e.g. Revenue Flow by Payer → Entity" value="Sankey Flow"/>
+    </div>
+ 
+    <div class="field">
+      <label>Orientation</label>
+      <select id="orientation">
+        <option value="h">Horizontal (left → right)</option>
+        <option value="v">Vertical (top → bottom)</option>
+      </select>
+    </div>
+ 
+    <div class="field">
+      <label>Value Format</label>
+      <select id="value-format">
+        <option value="number">Plain number (1,200,000)</option>
+        <option value="dollar">Dollar ($1.2M)</option>
+        <option value="percent">Percent (%)</option>
+      </select>
+    </div>
+ 
+    <div class="divider"></div>
+ 
+    <div>
+      <div class="section-label">Color Theme</div>
+      <div class="palette-grid" id="palette-grid"></div>
+    </div>
+ 
+    <div class="field">
+      <label>Node Thickness</label>
+      <select id="node-thickness">
+        <option value="15">Thin</option>
+        <option value="22" selected>Medium</option>
+        <option value="32">Thick</option>
+      </select>
+    </div>
+ 
+    <div class="field">
+      <label>Node Padding</label>
+      <select id="node-padding">
+        <option value="8">Tight</option>
+        <option value="15" selected>Normal</option>
+        <option value="25">Spacious</option>
+      </select>
+    </div>
+ 
+    <button class="btn btn-primary" onclick="renderChart()">
+      ↻ &nbsp;Apply & Re-render
+    </button>
+ 
+  </div>
+ 
+  <!-- ── CHART PANEL ── -->
+  <div class="panel" id="chart-panel">
+    <div id="chart-toolbar">
+      <div class="chart-title-display" id="chart-title-display">No chart yet</div>
+      <div id="chart-stats"></div>
+      <button class="btn btn-secondary btn-sm" onclick="renderChart()" title="Re-read Excel data and refresh chart">↻</button>
+    </div>
+    <div id="chart-container">
+      <div class="chart-empty" id="chart-empty">
+        <div class="chart-empty-icon">⟁</div>
+        <p>Set up your data range and click Render Chart</p>
+      </div>
+      <div id="chart" style="display:none;"></div>
+    </div>
+  </div>
+ 
+</div>
+ 
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let capturedRange = null;
+let selectedPalette = 0;
+ 
+const PALETTES = [
+  { name: 'Ocean',    colors: ['#2563eb','#0891b2','#0d9488','#16a34a','#65a30d','#ca8a04'] },
+  { name: 'Sunset',   colors: ['#dc2626','#ea580c','#d97706','#ca8a04','#65a30d','#0891b2'] },
+  { name: 'Violet',   colors: ['#7c3aed','#9333ea','#c026d3','#db2777','#e11d48','#f97316'] },
+  { name: 'Emerald',  colors: ['#059669','#0d9488','#0891b2','#2563eb','#4f46e5','#7c3aed'] },
+  { name: 'Slate',    colors: ['#334155','#475569','#64748b','#94a3b8','#a78bfa','#6c8cff'] },
+  { name: 'Coral',    colors: ['#f43f5e','#fb7185','#f97316','#fbbf24','#34d399','#60a5fa'] },
+];
+ 
+// ── Office Init ────────────────────────────────────────────────────────────
+Office.onReady(() => {
+  buildPaletteGrid();
+});
+ 
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['data','style','chart'][i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(name + '-panel').classList.add('active');
+}
+ 
+// ── Palette grid ───────────────────────────────────────────────────────────
+function buildPaletteGrid() {
+  const grid = document.getElementById('palette-grid');
+  grid.innerHTML = '';
+  PALETTES.forEach((p, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'palette-btn' + (i === selectedPalette ? ' selected' : '');
+    btn.style.background = `linear-gradient(135deg, ${p.colors[0]}, ${p.colors[2]}, ${p.colors[4]})`;
+    btn.textContent = p.name;
+    btn.onclick = () => {
+      selectedPalette = i;
+      document.querySelectorAll('.palette-btn').forEach((b,j) => b.classList.toggle('selected', j===i));
+    };
+    grid.appendChild(btn);
+  });
+}
+ 
+// ── Capture range ──────────────────────────────────────────────────────────
+async function captureRange() {
+  showStatus('data-status', 'info', 'Reading selection…', true);
+  try {
+    await Excel.run(async (ctx) => {
+      const range = ctx.workbook.getSelectedRange();
+      range.load(['address','rowCount','columnCount']);
+      await ctx.sync();
+ 
+      if (range.columnCount < 3) throw new Error('Select at least 3 columns (From, To, Value).');
+      if (range.rowCount < 2)   throw new Error('Need at least 2 rows (header + 1 data row).');
+ 
+      capturedRange = range.address;
+      document.getElementById('range-display').value = capturedRange;
+      showStatus('data-status', 'success', `Captured: ${capturedRange} (${range.rowCount - 1} rows)`);
+    });
+  } catch(e) {
+    showStatus('data-status', 'error', e.message || 'Could not read selection.');
+  }
+}
+ 
+// ── Parse ──────────────────────────────────────────────────────────────────
+function parseRows(rows) {
+  const links = [];
+  rows.slice(1).forEach((row, i) => {
+    const from  = String(row[0] || '').trim();
+    const to    = String(row[1] || '').trim();
+    const raw   = row[2];
+    const value = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[,$%]/g,''));
+ 
+    if (!from || !to)        return; // skip blanks
+    if (isNaN(value) || value <= 0) throw new Error(`Row ${i+2}: Value "${row[2]}" is not a positive number.`);
+    links.push({ from, to, value });
+  });
+  if (links.length === 0) throw new Error('No valid data rows found.');
+  return links;
+}
+ 
+// ── Render ─────────────────────────────────────────────────────────────────
+async function renderChart() {
+  if (!capturedRange) {
+    switchTab('data');
+    showStatus('data-status', 'error', 'Capture a data range first.');
+    return;
+  }
+ 
+  showStatus('data-status', 'info', 'Reading Excel data…', true);
+ 
+  try {
+    let links;
+    await Excel.run(async (ctx) => {
+      const range = ctx.workbook.worksheets.getActiveWorksheet().getRange(capturedRange);
+      range.load('values');
+      await ctx.sync();
+      links = parseRows(range.values);
+    });
+ 
+    buildSankey(links);
+    switchTab('chart');
+    showStatus('data-status', 'success', `Chart rendered · ${links.length} links`);
+ 
+  } catch(e) {
+    showStatus('data-status', 'error', e.message || 'Error reading data.');
+    switchTab('data');
+  }
+}
+ 
+// ── Build Sankey ───────────────────────────────────────────────────────────
+function buildSankey(links) {
+  const palette    = PALETTES[selectedPalette].colors;
+  const title      = document.getElementById('chart-title').value || 'Sankey Flow';
+  const orient     = document.getElementById('orientation').value;
+  const thickness  = parseInt(document.getElementById('node-thickness').value);
+  const padding    = parseInt(document.getElementById('node-padding').value);
+  const valFmt     = document.getElementById('value-format').value;
+ 
+  // Build node list (preserve order of appearance)
+  const nodeSet   = [];
+  const nodeIndex = {};
+  const addNode   = (name) => {
+    if (!(name in nodeIndex)) { nodeIndex[name] = nodeSet.length; nodeSet.push(name); }
+  };
+  links.forEach(l => { addNode(l.from); addNode(l.to); });
+ 
+  // Color nodes
+  const nodeColors = nodeSet.map((_, i) => palette[i % palette.length]);
+ 
+  // Link colors (semi-transparent source color)
+  const linkColors = links.map(l => hexToRgba(palette[nodeIndex[l.from] % palette.length], 0.35));
+ 
+  // Format tooltip values
+  const fmtVal = (v) => {
+    if (valFmt === 'dollar') return '$' + (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0));
+    if (valFmt === 'percent') return v.toFixed(1) + '%';
+    return v.toLocaleString();
+  };
+  const linkLabels = links.map(l => `${l.from} → ${l.to}: ${fmtVal(l.value)}`);
+ 
+  const data = [{
+    type: 'sankey',
+    orientation: orient,
+    arrangement: 'snap',
+    node: {
+      pad: padding,
+      thickness: thickness,
+      line: { color: 'rgba(0,0,0,0.15)', width: 0.5 },
+      label: nodeSet,
+      color: nodeColors,
+      hovertemplate: '<b>%{label}</b><br>Total: %{value}<extra></extra>',
+    },
+    link: {
+      source: links.map(l => nodeIndex[l.from]),
+      target: links.map(l => nodeIndex[l.to]),
+      value:  links.map(l => l.value),
+      color:  linkColors,
+      label:  linkLabels,
+      hovertemplate: '%{label}<extra></extra>',
+    },
+  }];
+ 
+  const layout = {
+    font: { family: 'DM Sans, sans-serif', size: 11, color: '#333' },
+    margin: { t: 36, b: 12, l: 12, r: 12 },
+    paper_bgcolor: '#ffffff',
+    plot_bgcolor:  '#ffffff',
+    title: {
+      text: title,
+      font: { size: 13, color: '#1a1d27', family: 'DM Sans, sans-serif' },
+      x: 0.5, xanchor: 'center',
+      pad: { t: 6 },
+    },
+  };
+ 
+  const config = {
+    responsive: true,
+    displayModeBar: true,
+    modeBarButtonsToRemove: ['sendDataToCloud','select2d','lasso2d'],
+    displaylogo: false,
+    toImageButtonOptions: { format: 'png', filename: title, scale: 2 },
+  };
+ 
+  const chartDiv = document.getElementById('chart');
+  chartDiv.style.display = 'block';
+  document.getElementById('chart-empty').style.display = 'none';
+  Plotly.newPlot('chart', data, layout, config);
+ 
+  // Update toolbar
+  document.getElementById('chart-title-display').textContent = title;
+  const total = links.reduce((s, l) => s + l.value, 0);
+  document.getElementById('chart-stats').textContent = `${nodeSet.length} nodes · ${links.length} links · ${fmtVal(total)} total`;
+}
+ 
+// ── Helpers ────────────────────────────────────────────────────────────────
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+ 
+function showStatus(id, type, msg, spin=false) {
+  const el = document.getElementById(id);
+  el.className = 'status show ' + type;
+  el.innerHTML = spin
+    ? `<div class="spinner"></div><span>${msg}</span>`
+    : `<div class="dot"></div><span>${msg}</span>`;
+}
+ 
+// Resize chart on panel switch
+const ro = new ResizeObserver(() => {
+  if (document.getElementById('chart-panel').classList.contains('active')) {
+    Plotly.Plots.resize('chart');
+  }
+});
+ro.observe(document.getElementById('chart-container'));
+</script>
+</body>
+</html>
+ 
