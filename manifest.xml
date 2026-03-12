@@ -14,6 +14,9 @@
   <IconUrl DefaultValue="https://via.placeholder.com/32/6c8cff/ffffff?text=S"/>
   <HighResolutionIconUrl DefaultValue="https://via.placeholder.com/64/6c8cff/ffffff?text=S"/>
   <SupportUrl DefaultValue="https://jmark412.github.io/Claude/"/>
+  <AppDomains>
+    <AppDomain>https://jmark412.github.io</AppDomain>
+  </AppDomains>
   <Hosts>
     <Host Name="Workbook"/>
   </Hosts>
