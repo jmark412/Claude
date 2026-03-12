@@ -107,10 +107,8 @@
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="TaskpaneButton.Tooltip"  DefaultValue="Open the Sankey Chart Builder to visualize your Excel data as an interactive flow diagram."/>
-        <bt:String id="GetStarted.LearnMoreUrl" DefaultValue="https://claude.ai"/>
       </bt:LongStrings>
     </Resources>
  
   </VersionOverrides>
 </OfficeApp>
- 
